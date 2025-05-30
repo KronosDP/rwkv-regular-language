@@ -67,7 +67,7 @@ def collate_fn(batch):
             # Ensure sequence is not longer than MAX_LEN before padding
             # This logic assumes sequences are already truncated if necessary before collate_fn
             # or that current_max_len will not exceed a model-defined MAX_LEN
-            padded_seq = torch.tensor(s[:MAX_LEN] + [VOCAB.get('<pad>', 0)] * padding_needed, dtype=torch.long) 
+            padded_seq = torch.tensor(s[:MAX_LEN].tolist() + [VOCAB.get('<pad>', 0)] * padding_needed, dtype=torch.long) 
             padded_sequences.append(padded_seq)
                 
     return torch.stack(padded_sequences), torch.stack(labels).unsqueeze(1)
