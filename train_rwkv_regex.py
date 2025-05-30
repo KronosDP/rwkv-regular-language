@@ -8,7 +8,7 @@ import torch.optim as optim
 from sklearn.metrics import accuracy_score, f1_score  # Added f1_score
 from torch.utils.data import DataLoader, Dataset
 
-from config import MODEL_HYPERPARAMETERS  # Added import
+from config import MAX_LEN, MODEL_HYPERPARAMETERS  # Added import
 # Import the model (assuming rwkv_model.py is in the same directory)
 from rwkv_model import RWKV7_Model_Classifier
 
@@ -52,24 +52,23 @@ def collate_fn(batch):
     current_max_len = 0
     for s in sequences:
         if len(s) > current_max_len:
-            current_max_len = len(s)
+            current_max_len = len(s) # Fixed: assign len(s)
+            
     if current_max_len == 0: # All sequences in batch are empty
         current_max_len = 1 # Pad to length 1 with <pad>
 
     padded_sequences = []
     for s in sequences:
         seq_len = len(s)
-        if seq_len == 0: # If original sequence was empty
-            # Pad with VOCAB['<pad>'] to current_max_len (which is at least 1)
-            pad_tensor = torch.full((current_max_len,), VOCAB.get('<pad>', 0), dtype=torch.long)
-            padded_sequences.append(pad_tensor)
+        if seq_len == 0:            
+            padded_sequences.append(torch.full((current_max_len,), VOCAB.get('<pad>', 0), dtype=torch.long)) # Pad with <pad> ID
         else:
             padding_needed = current_max_len - seq_len
-            if padding_needed > 0:
-                pad_tensor = torch.full((padding_needed,), VOCAB.get('<pad>', 0), dtype=torch.long)
-                padded_sequences.append(torch.cat([s, pad_tensor]))
-            else:
-                padded_sequences.append(s)
+            # Ensure sequence is not longer than MAX_LEN before padding
+            # This logic assumes sequences are already truncated if necessary before collate_fn
+            # or that current_max_len will not exceed a model-defined MAX_LEN
+            padded_seq = torch.tensor(s[:MAX_LEN] + [VOCAB.get('<pad>', 0)] * padding_needed, dtype=torch.long) 
+            padded_sequences.append(padded_seq)
                 
     return torch.stack(padded_sequences), torch.stack(labels).unsqueeze(1)
 

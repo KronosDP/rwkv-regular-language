@@ -8,3 +8,4 @@ MODEL_HYPERPARAMETERS = {
     "LORA_DIM_V": 16,
     "LORA_DIM_G": 32
 }
+MAX_LEN = 50

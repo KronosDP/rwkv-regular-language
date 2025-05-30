@@ -1,5 +1,6 @@
 import random
 
+from config import MAX_LEN  # Added import
 from utils import (check_ab_star, check_contains_substring,
                    generate_random_string)
 
@@ -7,7 +8,6 @@ from utils import (check_ab_star, check_contains_substring,
 VOCAB_CHARS = ['a', 'b', 'c']
 ALPHABET_CHARS_AB = ['a', 'b'] # For (ab)* check
 TARGET_SUBSTRING = "abbccc"
-MAX_LEN = 50
 NUM_SAMPLES_PER_CATEGORY = 150 # Number of unique samples to aim for in each category
 OUTPUT_FILE = "validation.txt"
 
