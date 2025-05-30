@@ -1,4 +1,6 @@
 import json
+import os
+import sys
 import time  # Added for timing epochs
 
 import matplotlib.pyplot as plt  # Added for plotting
@@ -9,13 +11,14 @@ from sklearn.metrics import accuracy_score, f1_score  # Added f1_score
 from torch.utils.data import DataLoader, Dataset
 
 from config import MAX_LEN, MODEL_HYPERPARAMETERS  # Added import
-# Import the model (assuming rwkv_model.py is in the same directory)
 from rwkv_model import RWKV7_Model_Classifier
 
-# --- Configuration ---
-# Removed D_MODEL, N_LAYER, HEAD_SIZE, FFN_HIDDEN_MULTIPLIER, LORA_DIM_W, LORA_DIM_A, LORA_DIM_V, LORA_DIM_G
-# VOCAB_SIZE will be loaded from dataset, but should be 4 for {'<pad>':0, 'a':1, 'b':2, 'c':3}
+# Add the project root to the Python path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
+# --- Configuration ---
 BATCH_SIZE = 1536
 LEARNING_RATE = 5e-4
 NUM_EPOCHS = 100         # Maximum number of epochs
