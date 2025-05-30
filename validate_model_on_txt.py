@@ -1,10 +1,10 @@
 import json
 
 import torch
-import torch.nn as nn
 
-from dataset_generator import VOCAB  # Removed MAX_LEN import
+from dataset_generator import VOCAB
 from rwkv_model import RWKV7_Model_Classifier
+from utils import check_ab_star, check_contains_substring, get_language_label
 
 # --- Configuration ---
 MODEL_PATH = "best_rwkv_regex_model.pth"
@@ -12,26 +12,8 @@ VALIDATION_FILE = "validation.txt"
 DATASET_INFO_FILE = "regex_dataset.json"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# --- Language Checking Functions ---
-ALPHABET_CHARS_AB = ['a', 'b']
-TARGET_SUBSTRING = "abbccc"
-
-def check_ab_star(s):
-    if not s: return True
-    if any(char not in ALPHABET_CHARS_AB for char in s): return False
-    if len(s) % 2 != 0: return False
-    for i in range(0, len(s), 2):
-        if s[i] != 'a' or s[i+1] != 'b':
-            return False
-    return True
-
-def check_contains_abbccc(s):
-    return TARGET_SUBSTRING in s
-
-def get_true_label(s):
-    is_lang1 = check_ab_star(s)
-    is_lang2 = check_contains_abbccc(s)
-    return 1 if is_lang1 or is_lang2 else 0
+ALPHABET_CHARS_AB = ['a', 'b'] # This can be removed if VOCAB is used directly or passed
+TARGET_SUBSTRING = "abbccc" # This should ideally be loaded or passed if it can vary
 
 # --- Model Loading and Inference ---
 def load_model_for_inference(model_path, vocab_size, d_model, n_layer, head_size, ffn_hidden_multiplier, 
@@ -100,21 +82,21 @@ def _load_config_and_vocab():
 
 def _get_model_hyperparameters():
     return {
-        "D_MODEL": 8, "N_LAYER": 4, "HEAD_SIZE": 8, "FFN_HIDDEN_MULTIPLIER": 4,
+        "D_MODEL": 4, "N_LAYER": 4, "HEAD_SIZE": 4, "FFN_HIDDEN_MULTIPLIER": 4,
         "LORA_DIM_W": 32, "LORA_DIM_A": 32, "LORA_DIM_V": 16, "LORA_DIM_G": 32
     }
 
 def _process_single_string(model, s, current_vocab, model_input_max_len):
-    true_label = get_true_label(s)
+    true_label = get_language_label(s, ('a','b'), TARGET_SUBSTRING) # MODIFIED
     predicted_label, _ = predict(model, s, current_vocab, model_input_max_len) # probability is unused
     if predicted_label is None:
         return None, None # Error in prediction
     return predicted_label == true_label, true_label, predicted_label
 
 def _update_and_log_category_counts(s, is_correct, counts):
-    is_ab_star_type = check_ab_star(s)
-    is_contains_type = check_contains_abbccc(s) and not is_ab_star_type
-    is_neither_type = not is_ab_star_type and not check_contains_abbccc(s)
+    is_ab_star_type = check_ab_star(s, ('a','b')) # MODIFIED
+    is_contains_type = check_contains_substring(s, TARGET_SUBSTRING) and not is_ab_star_type # MODIFIED
+    is_neither_type = not is_ab_star_type and not check_contains_substring(s, TARGET_SUBSTRING) # MODIFIED
 
     if is_ab_star_type:
         counts['ab_star_total'] += 1

@@ -1,5 +1,8 @@
 import random
 
+from utils import (check_ab_star, check_contains_substring,
+                   generate_random_string)
+
 # --- Configuration ---
 VOCAB_CHARS = ['a', 'b', 'c']
 ALPHABET_CHARS_AB = ['a', 'b'] # For (ab)* check
@@ -7,27 +10,6 @@ TARGET_SUBSTRING = "abbccc"
 MAX_LEN = 50
 NUM_SAMPLES_PER_CATEGORY = 150 # Number of unique samples to aim for in each category
 OUTPUT_FILE = "validation.txt"
-
-# --- Language Checking Functions ---
-def check_ab_star(s):
-    """Checks if a string matches (ab)* pattern."""
-    if not s: return True # Empty string is (ab)*
-    if any(char not in ALPHABET_CHARS_AB for char in s): return False
-    if len(s) % 2 != 0: return False
-    for i in range(0, len(s), 2):
-        if s[i] != 'a' or s[i+1] != 'b':
-            return False
-    return True
-
-def check_contains_abbccc(s):
-    """Checks if a string contains TARGET_SUBSTRING."""
-    return TARGET_SUBSTRING in s
-
-# --- String Generation Utilities ---
-def generate_random_string(length, alphabet):
-    """Generates a random string of a given length from an alphabet."""
-    if length < 0: length = 0
-    return "".join(random.choice(alphabet) for _ in range(length))
 
 def generate_ab_star_candidate(max_len):
     """Generates a candidate (ab)* string."""
@@ -66,7 +48,7 @@ def main():
     while len(category1_ab_star) < target_cat1 and attempts < target_cat1 * max_attempts_multiplier:
         s_len = random.randint(0, MAX_LEN) # Vary length for (ab)*
         s = generate_ab_star_candidate(s_len)
-        if check_ab_star(s) and s not in all_generated_strings: # check_ab_star is somewhat redundant here but good for clarity
+        if check_ab_star(s, tuple(ALPHABET_CHARS_AB)) and s not in all_generated_strings: # MODIFIED
             category1_ab_star.append(s)
             all_generated_strings.add(s)
         attempts += 1
@@ -82,7 +64,7 @@ def main():
         s = generate_contains_abbccc_candidate(s_len, VOCAB_CHARS)
         # Ensure it actually contains abbccc and is not an (ab)* string (which it shouldn't be)
         # and is not already collected
-        if check_contains_abbccc(s) and not check_ab_star(s) and s not in all_generated_strings:
+        if check_contains_substring(s, TARGET_SUBSTRING) and not check_ab_star(s, tuple(ALPHABET_CHARS_AB)) and s not in all_generated_strings: # MODIFIED
             category2_contains_abbccc.append(s)
             all_generated_strings.add(s)
         attempts += 1
@@ -95,7 +77,7 @@ def main():
     while len(category3_neither) < target_cat3 and attempts < target_cat3 * max_attempts_multiplier:
         length = random.randint(0, MAX_LEN) 
         s = generate_random_string(length, VOCAB_CHARS)
-        if not check_ab_star(s) and not check_contains_abbccc(s) and s not in all_generated_strings:
+        if not check_ab_star(s, tuple(ALPHABET_CHARS_AB)) and not check_contains_substring(s, TARGET_SUBSTRING) and s not in all_generated_strings: # MODIFIED
             category3_neither.append(s)
             all_generated_strings.add(s)
         attempts += 1

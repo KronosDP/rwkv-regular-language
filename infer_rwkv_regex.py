@@ -4,6 +4,7 @@ import torch
 
 # Import the model definition
 from rwkv_model import RWKV7_Model_Classifier
+from utils import get_language_label  # MODIFIED - Import from utils
 
 # --- Configuration ---
 D_MODEL = 8
@@ -22,23 +23,9 @@ MODEL_CHECKPOINT_PATH = 'best_rwkv_regex_model.pth' # Make sure this path is cor
 # Global VOCAB, will be loaded from dataset file
 VOCAB = {}
 TARGET_SUBSTRING = "" # Will be loaded
+PAD_TOKEN = '<pad>'
 
 # --- Language Checking Functions (for verification, same as in dataset_generator.py) ---
-def check_ab_star(s):
-    if not s: return True
-    if any(char not in ['a', 'b'] for char in s): return False
-    if len(s) % 2 != 0: return False
-    for i in range(0, len(s), 2):
-        if not (s[i] == 'a' and s[i+1] == 'b'): return False
-    return True
-
-def check_contains_abbccc(s, target_substring_global):
-    return target_substring_global in s
-
-def get_true_label(s, target_substring_global):
-    is_lang1 = check_ab_star(s)
-    is_lang2 = check_contains_abbccc(s, target_substring_global)
-    return 1 if is_lang1 or is_lang2 else 0
 
 def preprocess_string(input_str, vocab_map, max_len_from_dataset=None):
     """
@@ -52,14 +39,14 @@ def preprocess_string(input_str, vocab_map, max_len_from_dataset=None):
     Empty strings are padded to length 1 with <pad> to match training.
     """
     if not input_str: # Handle empty string
-        tokenized_input = [vocab_map.get('<pad>', 0)]
+        tokenized_input = [vocab_map.get(PAD_TOKEN, 0)]
     else:
-        tokenized_input = [vocab_map.get(char, vocab_map.get('<pad>', 0)) for char in input_str] # Use <pad> for OOV
+        tokenized_input = [vocab_map.get(char, vocab_map.get(PAD_TOKEN, 0)) for char in input_str]
 
     # If max_len_from_dataset is given, pad or truncate
     if max_len_from_dataset is not None:
         if len(tokenized_input) < max_len_from_dataset:
-            padding = [vocab_map.get('<pad>', 0)] * (max_len_from_dataset - len(tokenized_input))
+            padding = [vocab_map.get(PAD_TOKEN, 0)] * (max_len_from_dataset - len(tokenized_input))
             tokenized_input.extend(padding)
         elif len(tokenized_input) > max_len_from_dataset:
             tokenized_input = tokenized_input[:max_len_from_dataset]
@@ -129,8 +116,8 @@ def _inference_loop(model):
             print("Exiting...")
             break
         
-        if any(char not in VOCAB and char != '<pad>' for char in input_str): # Check for unknown characters
-            print(f"Warning: String contains characters not in the vocabulary: {list(VOCAB.keys())}. These will be treated as '<pad>'.")
+        if any(char not in VOCAB and char != PAD_TOKEN for char in input_str): # Check for unknown characters
+            print(f"Warning: String contains characters not in the vocabulary: {list(VOCAB.keys())}. These will be treated as '{PAD_TOKEN}'.")
 
         # Preprocess the input string
         processed_input = preprocess_string(input_str, VOCAB) 
@@ -141,7 +128,7 @@ def _inference_loop(model):
             probability = torch.sigmoid(logits.squeeze()) # Get probability for the single class
             prediction = (probability > 0.5).int().item()
 
-        true_label = get_true_label(input_str, TARGET_SUBSTRING)
+        true_label = get_language_label(input_str, ('a', 'b'), TARGET_SUBSTRING) # MODIFIED - Use imported function
         
         print(f"  Input: '{input_str}'")
         print(f"  Model Prediction: {prediction} (Probability: {probability.item():.4f})")

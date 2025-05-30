@@ -12,9 +12,9 @@ from torch.utils.data import DataLoader, Dataset
 from rwkv_model import RWKV7_Model_Classifier
 
 # --- Configuration ---
-D_MODEL = 8
+D_MODEL = 4
 N_LAYER = 4
-HEAD_SIZE = 8
+HEAD_SIZE = 4
 # VOCAB_SIZE will be loaded from dataset, but should be 4 for {'<pad>':0, 'a':1, 'b':2, 'c':3}
 FFN_HIDDEN_MULTIPLIER = 4 # Default from paper for MLP (ChannelMix)
 # LoRA dims for RWKV-7 (can be tuned, using smaller ones for this small model)
@@ -290,7 +290,6 @@ def train_and_evaluate():
             plt.xticks(epochs_x_axis)
 
         plt.tight_layout() # Adjust layout to make space for suptitle
-        plt.suptitle('Training Progress Visualization', fontsize=16)
         plt.show()
     else:
         print("No training epochs were completed, skipping plotting.")

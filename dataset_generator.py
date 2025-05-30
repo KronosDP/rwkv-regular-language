@@ -9,30 +9,8 @@ ALPHABET_CHARS_ABC = ['a', 'b', 'c']
 TARGET_SUBSTRING = "abbccc"
 
 # --- Language Checking Functions ---
-def check_ab_star(s):
-    """Checks if a string matches (ab)* pattern."""
-    if not s: return True
-    if any(char not in ALPHABET_CHARS_AB for char in s): return False
-    if len(s) % 2 != 0: return False
-    for i in range(0, len(s), 2):
-        if not (s[i] == 'a' and s[i+1] == 'b'):
-            return False
-    return True
-
-def check_contains_abbccc(s):
-    """Checks if a string contains TARGET_SUBSTRING."""
-    return TARGET_SUBSTRING in s
-
-def get_label(s):
-    """Labels a string: 1 if in language, 0 otherwise."""
-    is_lang1 = check_ab_star(s)
-    is_lang2 = check_contains_abbccc(s)
-    return 1 if is_lang1 or is_lang2 else 0
-
-# --- String Generation Utilities ---
-def generate_random_string(length, alphabet):
-    if length <= 0: return ""
-    return "".join(random.choice(alphabet) for _ in range(length))
+from utils import (check_ab_star, check_contains_substring,
+                   generate_random_string, get_language_label)
 
 # --- Helper Functions for Dataset Generation ---
 
@@ -188,7 +166,7 @@ def _sample_category(generator_fn, target_count, expected_label, seen_set, allow
     while len(collected) < target_count and attempts < max_total_attempts:
         attempts += 1
         s = generator_fn()
-        if get_label(s) == expected_label and (allow_duplicates or s not in seen_set):
+        if get_language_label(s, tuple(ALPHABET_CHARS_AB), TARGET_SUBSTRING) == expected_label and (allow_duplicates or s not in seen_set): # MODIFIED
             collected.append(s)
             if not allow_duplicates:
                 seen_set.add(s)
@@ -248,7 +226,7 @@ def generate_dataset(num_samples, max_len):
     return int_data, VOCAB
 
 if __name__ == "__main__":
-    NUM_SAMPLES = 100_000
+    NUM_SAMPLES = 1_000
     MAX_LEN = 50
     
     print(f"Generating {NUM_SAMPLES} samples up to max_len {MAX_LEN}...")
@@ -281,8 +259,8 @@ if __name__ == "__main__":
     
     for s_int, l_int in data:
         s_str = "".join([INV_VOCAB.get(t, "") for t in s_int])
-        is_ab = check_ab_star(s_str)
-        is_abbccc = check_contains_abbccc(s_str)
+        is_ab = check_ab_star(s_str, tuple(ALPHABET_CHARS_AB)) # MODIFIED
+        is_abbccc = check_contains_substring(s_str, TARGET_SUBSTRING)
         
         if l_int == 1:
             if is_ab and is_abbccc: pos_both_count += 1 # This will be 0
@@ -309,7 +287,7 @@ if __name__ == "__main__":
         int_seq, label = data[i]
         str_seq = "".join([INV_VOCAB.get(idx, "?") for idx in int_seq])
         print(f'Input: "{str_seq}", Label: {label}, Tokenized: {int_seq}')
-        verify_is_ab_star = check_ab_star(str_seq)
-        verify_contains_target = check_contains_abbccc(str_seq)
+        verify_is_ab_star = check_ab_star(str_seq, tuple(ALPHABET_CHARS_AB)) # MODIFIED
+        verify_contains_target = check_contains_substring(str_seq, TARGET_SUBSTRING)
         verify_label = 1 if verify_is_ab_star or verify_contains_target else 0
-        print(f'  Verify: (ab)*={verify_is_ab_star}, contains="{TARGET_SUBSTRING}"={verify_contains_target}, Expected Label={verify_label} -> {"Match" if label == verify_label else "MISMATCH!!"}')
+        print(f'  Verify: (ab)*={verify_is_ab_star}, contains="{TARGET_SUBSTRING}"={verify_contains_target}, Expected Label={verify_label} -> {{"Match" if label == verify_label else "MISMATCH!!"}}')
