@@ -1,5 +1,5 @@
 import json
-import time
+import time  # Added for timing epochs
 
 import matplotlib.pyplot as plt  # Added for plotting
 import torch
@@ -8,23 +8,15 @@ import torch.optim as optim
 from sklearn.metrics import accuracy_score, f1_score  # Added f1_score
 from torch.utils.data import DataLoader, Dataset
 
+from config import MODEL_HYPERPARAMETERS  # Added import
 # Import the model (assuming rwkv_model.py is in the same directory)
 from rwkv_model import RWKV7_Model_Classifier
 
 # --- Configuration ---
-D_MODEL = 4
-N_LAYER = 4
-HEAD_SIZE = 4
+# Removed D_MODEL, N_LAYER, HEAD_SIZE, FFN_HIDDEN_MULTIPLIER, LORA_DIM_W, LORA_DIM_A, LORA_DIM_V, LORA_DIM_G
 # VOCAB_SIZE will be loaded from dataset, but should be 4 for {'<pad>':0, 'a':1, 'b':2, 'c':3}
-FFN_HIDDEN_MULTIPLIER = 4 # Default from paper for MLP (ChannelMix)
-# LoRA dims for RWKV-7 (can be tuned, using smaller ones for this small model)
-# Based on Table 16 in paper (smallest for D=768), scaled down.
-LORA_DIM_W = 32 
-LORA_DIM_A = 32
-LORA_DIM_V = 16
-LORA_DIM_G = 32 # Scaled down from 128 for D=768
 
-BATCH_SIZE = 1536 
+BATCH_SIZE = 1536
 LEARNING_RATE = 5e-4
 NUM_EPOCHS = 100         # Maximum number of epochs
 EARLY_STOPPING_TARGET_ACC = 1.0  # Aim for perfect accuracy
@@ -111,13 +103,15 @@ def train_and_evaluate():
 
     # 2. Initialize Model
     model = RWKV7_Model_Classifier(
-        d_model=D_MODEL,
-        n_layer=N_LAYER,
+        d_model=MODEL_HYPERPARAMETERS["D_MODEL"],
+        n_layer=MODEL_HYPERPARAMETERS["N_LAYER"],
         vocab_size=vocab_size, # Use loaded vocab size
-        head_size=HEAD_SIZE,
-        ffn_hidden_multiplier=FFN_HIDDEN_MULTIPLIER,
-        lora_dim_w=LORA_DIM_W, lora_dim_a=LORA_DIM_A,
-        lora_dim_v=LORA_DIM_V, lora_dim_g=LORA_DIM_G
+        head_size=MODEL_HYPERPARAMETERS["HEAD_SIZE"],
+        ffn_hidden_multiplier=MODEL_HYPERPARAMETERS["FFN_HIDDEN_MULTIPLIER"],
+        lora_dim_w=MODEL_HYPERPARAMETERS["LORA_DIM_W"],
+        lora_dim_a=MODEL_HYPERPARAMETERS["LORA_DIM_A"],
+        lora_dim_v=MODEL_HYPERPARAMETERS["LORA_DIM_V"],
+        lora_dim_g=MODEL_HYPERPARAMETERS["LORA_DIM_G"]
     ).to(DEVICE)
     
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)

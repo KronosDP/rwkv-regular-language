@@ -2,6 +2,7 @@ import json
 
 import torch
 
+from config import MODEL_HYPERPARAMETERS  # Added import
 from dataset_generator import VOCAB
 from rwkv_model import RWKV7_Model_Classifier
 from utils import check_ab_star, check_contains_substring, get_language_label
@@ -80,12 +81,6 @@ def _load_config_and_vocab():
         return None, None, None
     return current_vocab, vocab_size, model_input_max_len
 
-def _get_model_hyperparameters():
-    return {
-        "D_MODEL": 4, "N_LAYER": 4, "HEAD_SIZE": 4, "FFN_HIDDEN_MULTIPLIER": 4,
-        "LORA_DIM_W": 32, "LORA_DIM_A": 32, "LORA_DIM_V": 16, "LORA_DIM_G": 32
-    }
-
 def _process_single_string(model, s, current_vocab, model_input_max_len):
     true_label = get_language_label(s, ('a','b'), TARGET_SUBSTRING) # MODIFIED
     predicted_label, _ = predict(model, s, current_vocab, model_input_max_len) # probability is unused
@@ -157,15 +152,15 @@ def main():
     current_vocab, vocab_size, model_input_max_len = _load_config_and_vocab()
     if current_vocab is None: return
 
-    model_params = _get_model_hyperparameters()
+    model_params = MODEL_HYPERPARAMETERS # Use imported hyperparameters
     print(f"Model hyperparameters: {model_params}")
     print(f"Model expected input max_len: {model_input_max_len}")
 
     model = load_model_for_inference(
-        MODEL_PATH, vocab_size, 
-        model_params["D_MODEL"], model_params["N_LAYER"], 
-        model_params["HEAD_SIZE"], model_params["FFN_HIDDEN_MULTIPLIER"], 
-        model_params["LORA_DIM_W"], model_params["LORA_DIM_A"], 
+        MODEL_PATH, vocab_size,
+        model_params["D_MODEL"], model_params["N_LAYER"],
+        model_params["HEAD_SIZE"], model_params["FFN_HIDDEN_MULTIPLIER"],
+        model_params["LORA_DIM_W"], model_params["LORA_DIM_A"],
         model_params["LORA_DIM_V"], model_params["LORA_DIM_G"]
     )
     if model is None: return

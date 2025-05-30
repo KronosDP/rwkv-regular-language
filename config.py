@@ -1,0 +1,10 @@
+MODEL_HYPERPARAMETERS = {
+    "D_MODEL": 4,
+    "N_LAYER": 4,
+    "HEAD_SIZE": 4,
+    "FFN_HIDDEN_MULTIPLIER": 4,
+    "LORA_DIM_W": 32,
+    "LORA_DIM_A": 32,
+    "LORA_DIM_V": 16,
+    "LORA_DIM_G": 32
+}
