@@ -2,9 +2,8 @@ import json
 
 import torch
 
-from config import (DATASET_FILE_CONFIG, MAX_LEN,  # Added
-                    MODEL_CHECKPOINT_PATH_CONFIG, MODEL_HYPERPARAMETERS,
-                    PAD_TOKEN_CONFIG)
+from config import (DATASET_FILE_CONFIG, MAX_LEN, MODEL_CHECKPOINT_PATH_CONFIG,
+                    MODEL_HYPERPARAMETERS, PAD_TOKEN_CONFIG)
 # Import the model definition
 from rwkv_model import RWKV7_Model_Classifier
 from utils import get_language_label  # MODIFIED - Import from utils
@@ -123,7 +122,7 @@ def _inference_loop(model):
             print(f"Warning: String contains characters not in the vocabulary: {list(VOCAB.keys())}. These will be treated as '{PAD_TOKEN}'.")
 
         # Preprocess the input string
-        processed_input = preprocess_string(input_str, VOCAB) 
+        processed_input = preprocess_string(input_str, VOCAB, MAX_LEN) 
 
         with torch.no_grad():
             # Initial states for RWKV are None for a new sequence
