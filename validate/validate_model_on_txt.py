@@ -3,8 +3,8 @@ import json
 import torch
 
 from config import MODEL_HYPERPARAMETERS  # Added import
-from dataset_generator import VOCAB
 from rwkv_model import RWKV7_Model_Classifier
+from train.dataset_generator import VOCAB
 from utils import check_ab_star, check_contains_substring, get_language_label
 
 # --- Configuration ---
