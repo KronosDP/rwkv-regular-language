@@ -2,28 +2,31 @@ import json
 
 import torch
 
+from config import (DATASET_FILE_CONFIG, MAX_LEN,  # Added
+                    MODEL_CHECKPOINT_PATH_CONFIG, MODEL_HYPERPARAMETERS,
+                    PAD_TOKEN_CONFIG)
 # Import the model definition
 from rwkv_model import RWKV7_Model_Classifier
 from utils import get_language_label  # MODIFIED - Import from utils
 
 # --- Configuration ---
-D_MODEL = 8
-N_LAYER = 4
-HEAD_SIZE = 8
-FFN_HIDDEN_MULTIPLIER = 4
-LORA_DIM_W = 32 
-LORA_DIM_A = 32
-LORA_DIM_V = 16
-LORA_DIM_G = 32
+D_MODEL = MODEL_HYPERPARAMETERS["D_MODEL"]
+N_LAYER = MODEL_HYPERPARAMETERS["N_LAYER"]
+HEAD_SIZE = MODEL_HYPERPARAMETERS["HEAD_SIZE"]
+FFN_HIDDEN_MULTIPLIER = MODEL_HYPERPARAMETERS["FFN_HIDDEN_MULTIPLIER"]
+LORA_DIM_W = MODEL_HYPERPARAMETERS["LORA_DIM_W"]
+LORA_DIM_A = MODEL_HYPERPARAMETERS["LORA_DIM_A"]
+LORA_DIM_V = MODEL_HYPERPARAMETERS["LORA_DIM_V"]
+LORA_DIM_G = MODEL_HYPERPARAMETERS["LORA_DIM_G"]
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DATASET_FILE = 'regex_dataset.json'
-MODEL_CHECKPOINT_PATH = 'best_rwkv_regex_model.pth' # Make sure this path is correct
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu") # Modified
+DATASET_FILE = DATASET_FILE_CONFIG # Modified
+MODEL_CHECKPOINT_PATH = MODEL_CHECKPOINT_PATH_CONFIG # Modified
 
 # Global VOCAB, will be loaded from dataset file
 VOCAB = {}
 TARGET_SUBSTRING = "" # Will be loaded
-PAD_TOKEN = '<pad>'
+PAD_TOKEN = PAD_TOKEN_CONFIG # Modified
 
 # --- Language Checking Functions (for verification, same as in dataset_generator.py) ---
 
