@@ -20,13 +20,13 @@ if project_root not in sys.path:
 
 # --- Configuration ---
 BATCH_SIZE = 1536
-LEARNING_RATE = 5e-4
-NUM_EPOCHS = 100         # Maximum number of epochs
-EARLY_STOPPING_TARGET_ACC = 1.0  # Aim for perfect accuracy
-EARLY_STOPPING_PATIENCE_COUNT = 3  # Stop if val_acc == 1.0 for this many consecutive epochs
-NO_IMPROVEMENT_PATIENCE = 15  # More patience for complex patterns
-VAL_ACC_THRESHOLD = 0.9999  # Very high accuracy threshold for early termination
-EARLY_STOPPING_TRAIN_ACC_MIN = 0.99  # Minimum training accuracy to consider early stopping
+LEARNING_RATE = 1e-3
+NUM_EPOCHS = 200
+EARLY_STOPPING_TARGET_ACC = 1.0 
+EARLY_STOPPING_PATIENCE_COUNT = 3
+NO_IMPROVEMENT_PATIENCE = 15
+VAL_ACC_THRESHOLD = 0.9999
+EARLY_STOPPING_TRAIN_ACC_MIN = 0.99
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DATASET_FILE = 'regex_dataset.json'

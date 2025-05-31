@@ -26,15 +26,8 @@ def _gen_ab_star_unique(ab_star_sequences):
 
 def _gen_contains(max_len):
     """Generates a string containing TARGET_SUBSTRING."""
-    if len(TARGET_SUBSTRING) > max_len: # Cannot embed if target is longer than max_len
-        # This case should ideally be handled by ensuring TARGET_SUBSTRING is not too long,
-        # or this generator should not be called. For robustness, return empty or a placeholder.
-        # However, current logic might embed a truncated TARGET_SUBSTRING if max_len is small.
-        # The [:max_len] at the end handles truncation.
-        # If TARGET_SUBSTRING itself is longer than max_len, this will result in TARGET_SUBSTRING[:max_len]
-        # which might not be the intended "contains" behavior.
-        # Assuming TARGET_SUBSTRING length <= max_len for meaningful generation.
-        if max_len < 0: return "" # Or handle error
+    if len(TARGET_SUBSTRING) > max_len:
+        if max_len < 0: return ""
         prefix_len = random.randint(0, max(0, max_len - len(TARGET_SUBSTRING)))
     else:
         prefix_len = random.randint(0, max_len - len(TARGET_SUBSTRING))
@@ -118,7 +111,7 @@ def _apply_ab_star_mutation(s_list_orig, max_len):
 def _gen_ab_star_specific_near_miss(max_len):
     """Generates strings that are specifically near misses to (ab)* pattern."""
     # Strategy 1: Mutate a valid (ab)* string or a component
-    if random.random() < 0.7 and max_len > 0:
+    if random.random() < 0.8 and max_len > 0:
         base_len = random.randint(0, (max_len // 2) + 1)
         s_list = list("ab" * base_len)
         if not s_list and max_len > 0: # if base_len was 0, start with a single char or two to mutate
@@ -226,7 +219,7 @@ def generate_dataset(num_samples, max_len):
     return int_data, VOCAB
 
 if __name__ == "__main__":
-    NUM_SAMPLES = 10_000
+    NUM_SAMPLES = 100_000
     MAX_LEN = 50
     
     print(f"Generating {NUM_SAMPLES} samples up to max_len {MAX_LEN}...")
@@ -281,13 +274,3 @@ if __name__ == "__main__":
     print(f"Vocabulary: {vocab_map}")
     print(f"Max length: {MAX_LEN}")
     print(f"Dataset saved to {file_path}")
-
-    print("\nSample data points (string, label, tokenized_sequence):")
-    for i in range(min(10, len(data))):
-        int_seq, label = data[i]
-        str_seq = "".join([INV_VOCAB.get(idx, "?") for idx in int_seq])
-        print(f'Input: "{str_seq}", Label: {label}, Tokenized: {int_seq}')
-        verify_is_ab_star = check_ab_star(str_seq, tuple(ALPHABET_CHARS_AB)) # MODIFIED
-        verify_contains_target = check_contains_substring(str_seq, TARGET_SUBSTRING)
-        verify_label = 1 if verify_is_ab_star or verify_contains_target else 0
-        print(f'  Verify: (ab)*={verify_is_ab_star}, contains="{TARGET_SUBSTRING}"={verify_contains_target}, Expected Label={verify_label} -> {{"Match" if label == verify_label else "MISMATCH!!"}}')
