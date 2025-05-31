@@ -219,7 +219,7 @@ def generate_dataset(num_samples, max_len):
     return int_data, VOCAB
 
 if __name__ == "__main__":
-    NUM_SAMPLES = 100_000
+    NUM_SAMPLES = 1_000
     MAX_LEN = 50
     
     print(f"Generating {NUM_SAMPLES} samples up to max_len {MAX_LEN}...")
