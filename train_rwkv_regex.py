@@ -48,6 +48,7 @@ class RegexDataset(Dataset):
 
 # --- Custom Collate Function for DataLoader ---
 def collate_fn(batch):
+    """Takes a batch of sequences with potentially different lengths and converts them into uniform-sized tensors that can be processed by the neural network."""
     sequences, labels = zip(*batch)
     
     # Determine max length in the current batch

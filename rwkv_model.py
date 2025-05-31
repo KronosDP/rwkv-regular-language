@@ -71,7 +71,7 @@ class RWKV_TimeMix(nn.Module):
         # Learnable parameters for key modifications
         # xi: removal key multiplier (eq.6)
         self.removal_key_multiplier_xi = nn.Parameter(torch.randn(d_model))
-        # alpha: replacement rate booster for k_bar_t (eq.7)
+        # alpha: replacement rate booster for k_bar_t (eq.7) - the most right term
         self.iclr_mix_alpha = nn.Parameter(torch.rand(d_model))
 
         # Learnable parameter rho for WKV Bonus (eq.20), per head
@@ -97,6 +97,7 @@ class RWKV_TimeMix(nn.Module):
         if shift_state_prev is None:
             shift_state_prev = torch.zeros(B, 1, C, device=x.device, dtype=x.dtype)
         # Concatenate previous shift state with current inputs (excluding the last token)
+        # See Pseudocode in Appendix G, Line 11-12
         x_shifted = torch.cat([shift_state_prev, x[:, :-1]], dim=1)
         # Save the last token's representation as the new shift state for the next call
         current_shift_state = x[:, -1:, :].clone()
