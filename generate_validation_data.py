@@ -32,67 +32,80 @@ def generate_contains_abbccc_candidate(max_len, alphabet_full):
     suffix = generate_random_string(suffix_len, alphabet_full)
     return prefix + TARGET_SUBSTRING + suffix
 
-def main():
-    all_generated_strings = set()
-    
-    category1_ab_star = []
-    category2_contains_abbccc = []
-    category3_neither = []
-
-    max_attempts_multiplier = 20 # Try harder to find unique strings
-
-    # Category 1: (ab)* strings
-    # (ab)* strings cannot contain "abbccc" because "abbccc" has "c" and "bb".
+def generate_category_strings(category_name, target_count, generator_func, validator_func, all_generated_strings, max_attempts_multiplier=20):
+    """Helper function to generate strings for a specific category."""
+    category_strings = []
     attempts = 0
-    target_cat1 = NUM_SAMPLES_PER_CATEGORY
-    while len(category1_ab_star) < target_cat1 and attempts < target_cat1 * max_attempts_multiplier:
-        s_len = random.randint(0, MAX_LEN) # Vary length for (ab)*
-        s = generate_ab_star_candidate(s_len)
-        if check_ab_star(s, tuple(ALPHABET_CHARS_AB)) and s not in all_generated_strings: # MODIFIED
-            category1_ab_star.append(s)
+    
+    while len(category_strings) < target_count and attempts < target_count * max_attempts_multiplier:
+        s = generator_func()
+        if validator_func(s) and s not in all_generated_strings:
+            category_strings.append(s)
             all_generated_strings.add(s)
         attempts += 1
-    if len(category1_ab_star) < target_cat1:
-        print(f"Warning: Could only generate {len(category1_ab_star)} unique (ab)* strings out of {target_cat1} desired.")
+    
+    if len(category_strings) < target_count:
+        print(f"Warning: Could only generate {len(category_strings)} unique {category_name} strings out of {target_count} desired.")
+    
+    return category_strings
+
+def generate_all_categories(all_generated_strings, max_attempts_multiplier):
+    """Generate all three categories of strings."""
+    # Category 1: (ab)* strings
+    category1_ab_star = generate_category_strings(
+        category_name="(ab)*",
+        target_count=NUM_SAMPLES_PER_CATEGORY,
+        generator_func=lambda: generate_ab_star_candidate(random.randint(0, MAX_LEN)),
+        validator_func=lambda s: check_ab_star(s, tuple(ALPHABET_CHARS_AB)),
+        all_generated_strings=all_generated_strings,
+        max_attempts_multiplier=max_attempts_multiplier
+    )
 
     # Category 2: Strings containing "abbccc"
-    # These will not be (ab)* strings.
-    attempts = 0
-    target_cat2 = NUM_SAMPLES_PER_CATEGORY
-    while len(category2_contains_abbccc) < target_cat2 and attempts < target_cat2 * max_attempts_multiplier:
-        s_len = random.randint(len(TARGET_SUBSTRING), MAX_LEN) # Must be long enough for substring
-        s = generate_contains_abbccc_candidate(s_len, VOCAB_CHARS)
-        # Ensure it actually contains abbccc and is not an (ab)* string (which it shouldn't be)
-        # and is not already collected
-        if check_contains_substring(s, TARGET_SUBSTRING) and not check_ab_star(s, tuple(ALPHABET_CHARS_AB)) and s not in all_generated_strings: # MODIFIED
-            category2_contains_abbccc.append(s)
-            all_generated_strings.add(s)
-        attempts += 1
-    if len(category2_contains_abbccc) < target_cat2:
-        print(f"Warning: Could only generate {len(category2_contains_abbccc)} unique strings containing '{TARGET_SUBSTRING}' out of {target_cat2} desired.")
+    category2_contains_abbccc = generate_category_strings(
+        category_name="contains 'abbccc'",
+        target_count=NUM_SAMPLES_PER_CATEGORY,
+        generator_func=lambda: generate_contains_abbccc_candidate(random.randint(len(TARGET_SUBSTRING), MAX_LEN), VOCAB_CHARS),
+        validator_func=lambda s: check_contains_substring(s, TARGET_SUBSTRING) and not check_ab_star(s, tuple(ALPHABET_CHARS_AB)),
+        all_generated_strings=all_generated_strings,
+        max_attempts_multiplier=max_attempts_multiplier
+    )
         
     # Category 3: Random gibberish strings (neither (ab)* nor containing "abbccc")
-    attempts = 0
-    target_cat3 = NUM_SAMPLES_PER_CATEGORY
-    while len(category3_neither) < target_cat3 and attempts < target_cat3 * max_attempts_multiplier:
-        length = random.randint(0, MAX_LEN) 
-        s = generate_random_string(length, VOCAB_CHARS)
-        if not check_ab_star(s, tuple(ALPHABET_CHARS_AB)) and not check_contains_substring(s, TARGET_SUBSTRING) and s not in all_generated_strings: # MODIFIED
-            category3_neither.append(s)
-            all_generated_strings.add(s)
-        attempts += 1
-    if len(category3_neither) < target_cat3:
-        print(f"Warning: Could only generate {len(category3_neither)} unique gibberish strings out of {target_cat3} desired.")
+    category3_neither = generate_category_strings(
+        category_name="gibberish (neither)",
+        target_count=NUM_SAMPLES_PER_CATEGORY,
+        generator_func=lambda: generate_random_string(random.randint(0, MAX_LEN), VOCAB_CHARS),
+        validator_func=lambda s: not check_ab_star(s, tuple(ALPHABET_CHARS_AB)) and not check_contains_substring(s, TARGET_SUBSTRING),
+        all_generated_strings=all_generated_strings,
+        max_attempts_multiplier=max_attempts_multiplier
+    )
+    
+    return category1_ab_star, category2_contains_abbccc, category3_neither
+
+def write_validation_data(final_list_of_strings):
+    """Write validation data to file."""
+    output_path = "validation.txt"
+    with open(output_path, 'w') as f:
+        for s in final_list_of_strings:
+            f.write(s + '\n')
+    return output_path
+
+def main():
+    all_generated_strings = set()
+    max_attempts_multiplier = 20
+
+    # Generate all categories
+    category1_ab_star, category2_contains_abbccc, category3_neither = generate_all_categories(
+        all_generated_strings, max_attempts_multiplier
+    )
 
     # Combine all strings and shuffle
     final_list_of_strings = category1_ab_star + category2_contains_abbccc + category3_neither
     random.shuffle(final_list_of_strings)
 
     # Write to file
-    output_path = "validation.txt" # Assuming script is run from workspace root
-    with open(output_path, 'w') as f:
-        for s in final_list_of_strings:
-            f.write(s + '\n')
+    output_path = write_validation_data(final_list_of_strings)
             
     print(f"Generated {len(final_list_of_strings)} unique strings in total.")
     print("Distribution of generated strings (categories are mutually exclusive by design):")
