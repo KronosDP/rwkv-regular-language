@@ -159,7 +159,7 @@ def _sample_category(generator_fn, target_count, expected_label, seen_set, allow
     while len(collected) < target_count and attempts < max_total_attempts:
         attempts += 1
         s = generator_fn()
-        if get_language_label(s, tuple(ALPHABET_CHARS_AB), TARGET_SUBSTRING) == expected_label and (allow_duplicates or s not in seen_set): # MODIFIED
+        if get_language_label(s, tuple(ALPHABET_CHARS_AB), TARGET_SUBSTRING) == expected_label and (allow_duplicates or s not in seen_set):
             collected.append(s)
             if not allow_duplicates:
                 seen_set.add(s)
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     
     for s_int, l_int in data:
         s_str = "".join([INV_VOCAB.get(t, "") for t in s_int])
-        is_ab = check_ab_star(s_str, tuple(ALPHABET_CHARS_AB)) # MODIFIED
+        is_ab = check_ab_star(s_str, tuple(ALPHABET_CHARS_AB))
         is_abbccc = check_contains_substring(s_str, TARGET_SUBSTRING)
         
         if l_int == 1:

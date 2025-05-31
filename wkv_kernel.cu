@@ -60,6 +60,21 @@ std::vector<torch::Tensor> wkv_forward(
     TORCH_CHECK(a.is_cuda(), "a must be a CUDA tensor"); // Added check for 'a'
     TORCH_CHECK(a.is_contiguous(), "a must be contiguous"); // Added check for 'a'
 
+    TORCH_CHECK(w.is_cuda(), "w must be a CUDA tensor");
+    TORCH_CHECK(w.is_contiguous(), "w must be contiguous");
+
+    TORCH_CHECK(k_bar.is_cuda(), "k_bar must be a CUDA tensor");
+    TORCH_CHECK(k_bar.is_contiguous(), "k_bar must be contiguous");
+
+    TORCH_CHECK(v.is_cuda(), "v must be a CUDA tensor");
+    TORCH_CHECK(v.is_contiguous(), "v must be contiguous");
+
+    TORCH_CHECK(kappa_hat.is_cuda(), "kappa_hat must be a CUDA tensor");
+    TORCH_CHECK(kappa_hat.is_contiguous(), "kappa_hat must be contiguous");
+
+    TORCH_CHECK(initial_wkv_state.is_cuda(), "initial_wkv_state must be a CUDA tensor");
+    TORCH_CHECK(initial_wkv_state.is_contiguous(), "initial_wkv_state must be contiguous");
+
 
     const auto B = r.size(0);
     const auto T = r.size(1);
