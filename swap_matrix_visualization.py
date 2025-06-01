@@ -125,7 +125,7 @@ def calculate_actual_Gt_from_learned_params(w_t_head, a_t_head, kappa_hat_t_head
     term_a_kappa_hat_row = term_a_kappa_hat.reshape(1, -1)
     outer_product_term = kappa_hat_col @ term_a_kappa_hat_row
     Gt_actual = diag_wt - outer_product_term
-    return Gt_actual
+    return Gt_actual, diag_wt, outer_product_term
 
 # --- Main Execution ---
 def main():
@@ -207,8 +207,8 @@ def main():
 
         print(f"\n--- Creating Visualization for: {description} ---")
         
-        # Create figure with subplots for this test case
-        fig, axes = plt.subplots(2, len(layers_to_inspect), figsize=(4*len(layers_to_inspect), 8))
+        # Create figure with subplots for this test case (5 rows for all components)
+        fig, axes = plt.subplots(5, len(layers_to_inspect), figsize=(4*len(layers_to_inspect), 20))
         if len(layers_to_inspect) == 1:
             axes = axes.reshape(-1, 1)
         
@@ -221,41 +221,62 @@ def main():
                 learned_a_head = learned_a_all_h[head_to_inspect]
                 learned_kappa_hat_head = learned_kappa_hat_all_h[head_to_inspect]
 
-                actual_Gt_matrix = calculate_actual_Gt_from_learned_params(
+                actual_Gt_matrix, diag_wt_matrix, outer_product_matrix = calculate_actual_Gt_from_learned_params(
                     learned_w_head, learned_a_head, learned_kappa_hat_head
                 )
                 
-                # Plot theoretical matrix (top row)
+                # Plot theoretical matrix (row 0)
                 sns.heatmap(theoretical_swap_c2_matrix, 
                            annot=True, fmt='.2f', cmap='RdBu_r', center=0,
                            ax=axes[0, layer_idx], cbar=layer_idx==len(layers_to_inspect)-1,
                            vmin=-1, vmax=1)
                 axes[0, layer_idx].set_title(f'Theoretical\nLayer {layer_to_inspect}')
                 
-                # Plot experimental matrix (bottom row)
+                # Plot diag(w_t) matrix (row 1)
+                sns.heatmap(diag_wt_matrix, 
+                           annot=True, fmt='.2f', cmap='viridis',
+                           ax=axes[1, layer_idx], cbar=layer_idx==len(layers_to_inspect)-1)
+                axes[1, layer_idx].set_title(f'diag(w_t)\nLayer {layer_to_inspect}')
+                
+                # Plot outer product term (row 2)
+                sns.heatmap(outer_product_matrix, 
+                           annot=True, fmt='.2f', cmap='plasma',
+                           ax=axes[2, layer_idx], cbar=layer_idx==len(layers_to_inspect)-1)
+                axes[2, layer_idx].set_title(f'Outer Product Term\nLayer {layer_to_inspect}')
+                
+                # Plot experimental G_t matrix (row 3)
                 sns.heatmap(actual_Gt_matrix, 
                            annot=True, fmt='.2f', cmap='RdBu_r', center=0,
-                           ax=axes[1, layer_idx], cbar=layer_idx==len(layers_to_inspect)-1,
+                           ax=axes[3, layer_idx], cbar=layer_idx==len(layers_to_inspect)-1,
                            vmin=-1, vmax=1)
-                axes[1, layer_idx].set_title(f'Experimental\nLayer {layer_to_inspect}')
+                axes[3, layer_idx].set_title(f'Experimental G_t\nLayer {layer_to_inspect}')
+                
+                # Plot difference matrix (row 4)
+                diff_matrix = actual_Gt_matrix - theoretical_swap_c2_matrix
+                sns.heatmap(diff_matrix, 
+                           annot=True, fmt='.2f', cmap='RdBu_r', center=0,
+                           ax=axes[4, layer_idx], cbar=layer_idx==len(layers_to_inspect)-1)
+                axes[4, layer_idx].set_title(f'Difference\nLayer {layer_to_inspect}')
                 
                 # Calculate similarity metrics
-                diff_norm = np.linalg.norm(actual_Gt_matrix - theoretical_swap_c2_matrix)
+                diff_norm = np.linalg.norm(diff_matrix)
                 print(f"Layer {layer_to_inspect}: Norm difference = {diff_norm:.4f}")
                 
             except Exception as e:
                 print(f"Error processing layer {layer_to_inspect}: {e}")
-                axes[0, layer_idx].text(0.5, 0.5, 'ERROR', ha='center', va='center', transform=axes[0, layer_idx].transAxes)
-                axes[1, layer_idx].text(0.5, 0.5, 'ERROR', ha='center', va='center', transform=axes[1, layer_idx].transAxes)
+                for row in range(5):
+                    axes[row, layer_idx].text(0.5, 0.5, 'ERROR', ha='center', va='center', 
+                                            transform=axes[row, layer_idx].transAxes)
         
-        
+        plt.suptitle(f'G_t Matrix Components Analysis | '
+                     f'Input: {current_char_input}, Previous: {prev_char_input}', fontsize=16, y=0.98)
         plt.tight_layout()
-        plt.subplots_adjust(top=0.92)
+        plt.subplots_adjust(top=0.94)
         
-        filename = f'Gt_matrix_comparison_case_{case_idx+1}.png'
+        filename = f'Gt_components_analysis_case_{case_idx+1}.png'
         plt.savefig(filename, dpi=150, bbox_inches='tight')
-        print(f"Saved visualization as {filename}")
-        plt.show()
+        print(f"Saved detailed visualization as {filename}")
+        plt.close()  # Close the figure to free memory
         
     print("\n--- Summary Statistics Across All Cases ---")
     all_differences = []
@@ -279,7 +300,7 @@ def main():
                 learned_a_head = learned_a_all_h[head_to_inspect]
                 learned_kappa_hat_head = learned_kappa_hat_all_h[head_to_inspect]
 
-                actual_Gt_matrix = calculate_actual_Gt_from_learned_params(
+                actual_Gt_matrix, _, _ = calculate_actual_Gt_from_learned_params(
                     learned_w_head, learned_a_head, learned_kappa_hat_head
                 )
                 
@@ -298,7 +319,11 @@ def main():
     print("\nOverall Conclusion:")
     print("This script compares the theoretical swap matrix G_t with the experimental")
     print("matrices learned by the RWKV model across different layers and input contexts.")
-    print("The heatmaps show how closely the learned behavior matches the theoretical ideal.")
+    print("The detailed component analysis shows:")
+    print("- diag(w_t): The diagonal decay component")
+    print("- Outer Product Term: The removal mechanism κ̂_t^T @ (a_t ⊙ κ̂_t)")
+    print("- G_t = diag(w_t) - outer_product_term")
+    print("- Difference from theoretical ideal")
 
 if __name__ == "__main__":
     main()
