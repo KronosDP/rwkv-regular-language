@@ -1,10 +1,11 @@
 import json
 
 import torch
+from tqdm import tqdm  # Added import
 
 from config import MODEL_HYPERPARAMETERS  # Added import
-from rwkv_model import RWKV7_Model_Classifier
 from dataset_generator import VOCAB
+from rwkv_model import RWKV7_Model_Classifier
 from utils import check_ab_star, check_contains_substring, get_language_label
 
 # --- Configuration ---
@@ -129,10 +130,11 @@ def _evaluate_model(model, test_strings, current_vocab, model_input_max_len):
         'neither_total': 0, 'neither_correct': 0
     }
     print("\nStarting validation...")
-    for i, s in enumerate(test_strings):
+    for s in tqdm(test_strings, desc="Processing strings"): # MODIFIED
         result = _process_single_string(model, s, current_vocab, model_input_max_len)
         if result is None or result[0] is None: # Indicates an error during prediction
-            print(f"Skipping string {i+1} due to prediction error.")
+            # tqdm will show progress, so specific skip message might be less critical or could be logged differently
+            # print(f"Skipping string due to prediction error.") # Optional: keep if detailed per-string error is needed
             continue
         
         is_correct, _, _ = result
@@ -141,8 +143,9 @@ def _evaluate_model(model, test_strings, current_vocab, model_input_max_len):
         total_predictions += 1
         _update_and_log_category_counts(s, is_correct, counts)
         
-        if (i + 1) % 50 == 0 or (i + 1) == len(test_strings):
-            print(f"  Processed {i+1}/{len(test_strings)} strings...")
+        # Removed manual progress printing:
+        # if (i + 1) % 50 == 0 or (i + 1) == len(test_strings):
+        #     print(f"  Processed {i+1}/{len(test_strings)} strings...")
     print("\nValidation Complete!")
     _print_final_accuracies(counts, total_predictions, correct_predictions)
 
