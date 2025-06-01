@@ -169,15 +169,12 @@ def main():
     head_to_inspect = 0
     
     test_cases = [
-        {'current_char': 'a', 'prev_char': PAD_TOKEN_CONFIG, 'desc': "Input 'a', prev PAD"},
-        {'current_char': 'b', 'prev_char': 'a', 'desc': "Input 'b', prev 'a'"},
-        {'current_char': 'c', 'prev_char': 'b', 'desc': "Input 'c', prev 'b'"},
-        {'current_char': 'a', 'prev_char': 'c', 'desc': "Input 'a', prev 'c'"},
-        {'current_char': 'b', 'prev_char': PAD_TOKEN_CONFIG, 'desc': "Input 'b', prev PAD"},
-        {'current_char': 'c', 'prev_char': PAD_TOKEN_CONFIG, 'desc': "Input 'c', prev PAD"},
         {'current_char': 'a', 'prev_char': 'b', 'desc': "Input 'a', prev 'b'"},
+        {'current_char': 'b', 'prev_char': 'a', 'desc': "Input 'b', prev 'a'"},
+        {'current_char': 'c', 'prev_char': 'a', 'desc': "Input 'c', prev 'a'"},
+        {'current_char': 'a', 'prev_char': 'c', 'desc': "Input 'a', prev 'c'"},
         {'current_char': 'b', 'prev_char': 'c', 'desc': "Input 'b', prev 'c'"},
-        {'current_char': 'c', 'prev_char': 'a', 'desc': "Input 'c', prev 'a'"}
+        {'current_char': 'c', 'prev_char': 'b', 'desc': "Input 'c', prev 'b'"},
     ]
 
     idx_to_swap_1 = 0
