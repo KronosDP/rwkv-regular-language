@@ -114,7 +114,7 @@ def get_learned_time_mix_params_for_input(
            kappa_hat_t_all_heads.cpu().numpy()
 
 
-def calculate_actual_gt_from_learned_params(w_t_head, a_t_head, kappa_hat_t_head):
+def calculate_actual_Gt_from_learned_params(w_t_head, a_t_head, kappa_hat_t_head):
     """
     Calculates the actual G_t for a single head using its learned parameters.
     The model's formula is G_t = diag(w_t) - kappa_hat_t^T @ (a_t . kappa_hat_t)
@@ -124,8 +124,8 @@ def calculate_actual_gt_from_learned_params(w_t_head, a_t_head, kappa_hat_t_head
     kappa_hat_col = kappa_hat_t_head.reshape(-1, 1)
     term_a_kappa_hat_row = term_a_kappa_hat.reshape(1, -1)
     outer_product_term = kappa_hat_col @ term_a_kappa_hat_row
-    gt_actual = diag_wt - outer_product_term
-    return gt_actual
+    Gt_actual = diag_wt - outer_product_term
+    return Gt_actual
 
 # --- Main Execution ---
 def main():
@@ -221,7 +221,7 @@ def main():
                 learned_a_head = learned_a_all_h[head_to_inspect]
                 learned_kappa_hat_head = learned_kappa_hat_all_h[head_to_inspect]
 
-                actual_gt_matrix = calculate_actual_gt_from_learned_params(
+                actual_Gt_matrix = calculate_actual_Gt_from_learned_params(
                     learned_w_head, learned_a_head, learned_kappa_hat_head
                 )
                 
@@ -233,14 +233,14 @@ def main():
                 axes[0, layer_idx].set_title(f'Theoretical\nLayer {layer_to_inspect}')
                 
                 # Plot experimental matrix (bottom row)
-                sns.heatmap(actual_gt_matrix, 
+                sns.heatmap(actual_Gt_matrix, 
                            annot=True, fmt='.2f', cmap='RdBu_r', center=0,
                            ax=axes[1, layer_idx], cbar=layer_idx==len(layers_to_inspect)-1,
                            vmin=-1, vmax=1)
                 axes[1, layer_idx].set_title(f'Experimental\nLayer {layer_to_inspect}')
                 
                 # Calculate similarity metrics
-                diff_norm = np.linalg.norm(actual_gt_matrix - theoretical_swap_c2_matrix)
+                diff_norm = np.linalg.norm(actual_Gt_matrix - theoretical_swap_c2_matrix)
                 print(f"Layer {layer_to_inspect}: Norm difference = {diff_norm:.4f}")
                 
             except Exception as e:
@@ -248,12 +248,11 @@ def main():
                 axes[0, layer_idx].text(0.5, 0.5, 'ERROR', ha='center', va='center', transform=axes[0, layer_idx].transAxes)
                 axes[1, layer_idx].text(0.5, 0.5, 'ERROR', ha='center', va='center', transform=axes[1, layer_idx].transAxes)
         
-        fig.suptitle(f'G_t Matrix Comparison: {description}\nHead {head_to_inspect} across Layers 0-{len(layers_to_inspect)-1}', 
-                     fontsize=14, y=0.98)
+        
         plt.tight_layout()
         plt.subplots_adjust(top=0.92)
         
-        filename = f'gt_matrix_comparison_case_{case_idx+1}.png'
+        filename = f'Gt_matrix_comparison_case_{case_idx+1}.png'
         plt.savefig(filename, dpi=150, bbox_inches='tight')
         print(f"Saved visualization as {filename}")
         plt.show()
@@ -280,11 +279,11 @@ def main():
                 learned_a_head = learned_a_all_h[head_to_inspect]
                 learned_kappa_hat_head = learned_kappa_hat_all_h[head_to_inspect]
 
-                actual_gt_matrix = calculate_actual_gt_from_learned_params(
+                actual_Gt_matrix = calculate_actual_Gt_from_learned_params(
                     learned_w_head, learned_a_head, learned_kappa_hat_head
                 )
                 
-                diff_norm = np.linalg.norm(actual_gt_matrix - theoretical_swap_c2_matrix)
+                diff_norm = np.linalg.norm(actual_Gt_matrix - theoretical_swap_c2_matrix)
                 all_differences.append(diff_norm)
                 
             except Exception:
