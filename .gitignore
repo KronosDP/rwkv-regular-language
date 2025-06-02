@@ -3,3 +3,6 @@ validation.txt
 *.json
 *.pth
 *.pdf
+build/
+*.pyd
+*.png

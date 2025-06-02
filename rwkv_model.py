@@ -1,9 +1,81 @@
-import math
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+try:
+    import custom_wkv_kernel
+    print("Successfully imported custom_wkv_kernel.")
+    use_custom_kernel = True
+except ImportError:
+    print("Failed to import custom_wkv_kernel. Falling back to PyTorch implementation.")
+    use_custom_kernel = False
+
+class WKVFunction(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, r_head, w_head, k_bar_head, v_head, kappa_hat_head, a_head, initial_wkv_state):
+        # r_head, w_head, etc are (B, T, H, N)
+        # initial_wkv_state is (B, H, N, N)
+        
+        # Ensure inputs are contiguous and on the correct device (CUDA)
+        # PyTorch C++ extensions usually handle device placement if tensors are already on CUDA.
+        # It's good practice to ensure contiguity.
+        r_head = r_head.contiguous()
+        w_head = w_head.contiguous()
+        k_bar_head = k_bar_head.contiguous()
+        v_head = v_head.contiguous()
+        kappa_hat_head = kappa_hat_head.contiguous()
+        a_head = a_head.contiguous()
+        initial_wkv_state = initial_wkv_state.contiguous()
+
+        # Call the C++/CUDA forward function
+        # It returns: p_prime_all_steps, final_wkv_state, state_cache
+        outputs = custom_wkv_kernel.forward(r_head, w_head, k_bar_head, v_head, kappa_hat_head, a_head, initial_wkv_state)
+        
+        if outputs is None:
+            raise RuntimeError(
+                "The custom_wkv_kernel.forward function returned None. "
+                "This indicates a potential issue or crash within the C++ custom kernel."
+            )
+        
+        if not isinstance(outputs, (list, tuple)) or len(outputs) != 3:
+            raise RuntimeError(
+                f"The custom_wkv_kernel.forward function returned an unexpected value: {outputs}. "
+                "Expected a sequence of 3 tensors."
+            )
+        
+        if not all(isinstance(t, torch.Tensor) for t in outputs):
+            raise RuntimeError(
+                f"The custom_wkv_kernel.forward function returned non-tensor elements: {[type(t) for t in outputs]}. "
+                "Expected 3 tensors."
+            )
+            
+        p_prime_all_steps, final_wkv_state, state_cache = outputs[0], outputs[1], outputs[2]
+        
+        # Save tensors for backward pass
+        # Note: w_head is w_t itself. If the kernel expected pre-transformed decay (like d_lora_out),
+        # this setup would need adjustment. Assuming kernel handles w_t directly.
+        ctx.save_for_backward(r_head, w_head, k_bar_head, v_head, kappa_hat_head, a_head, state_cache)
+        return p_prime_all_steps, final_wkv_state
+
+    @staticmethod
+    def backward(ctx, grad_p_prime_all_steps, grad_final_wkv_state):
+        # grad_p_prime_all_steps is (B, T, H, N)
+        # grad_final_wkv_state is (B, H, N, N)
+        
+        r_head, w_head, k_bar_head, v_head, kappa_hat_head, a_head, state_cache = ctx.saved_tensors
+        
+        grad_p_prime_all_steps = grad_p_prime_all_steps.contiguous()
+        grad_final_wkv_state = grad_final_wkv_state.contiguous()
+
+        # Call the C++/CUDA backward function
+        # It computes gradients for: r, w, k_bar, v, kappa_hat, a, and initial_wkv_state
+        grads = custom_wkv_kernel.backward(
+            grad_p_prime_all_steps, grad_final_wkv_state,
+            r_head, w_head, k_bar_head, v_head, kappa_hat_head, a_head,
+            state_cache
+        )
+        # Order of returned grads: grad_r, grad_w, grad_k_bar, grad_v, grad_kappa_hat, grad_a, grad_initial_wkv_state
+        return grads[0], grads[1], grads[2], grads[3], grads[4], grads[5], grads[6]
 
 class LoraMLP(nn.Module):
     """
@@ -165,53 +237,75 @@ class RWKV_TimeMix(nn.Module):
         if wkv_state_prev is None:
             wkv_state_prev = torch.zeros(B, H, N, N, device=x.device, dtype=x.dtype) # (B,H,N,N) matrix per head
 
-        wkv_readouts_over_time = [] # To store the readout from WKV state at each time step
-        current_wkv_state = wkv_state_prev # This is wkv_{t-1}
+        if use_custom_kernel:
+            # Use the custom CUDA kernel
+            # WKVFunction.forward is expected to return (p_prime_all_steps, final_wkv_state)
+            # These are then returned by WKVFunction.apply
+            applied_outputs = WKVFunction.apply(
+                r_head, w_head, k_bar_head, v_head, kappa_hat_head, a_head, wkv_state_prev
+            )
 
-        # Iterate over each time step in the sequence
-        for t_step in range(T):
-            # Get per-timestep components (B,H,N)
-            rt, wt, kt_bar, vt, kappat_hat, at = \
-                r_head[:,t_step], w_head[:,t_step], k_bar_head[:,t_step], v_head[:,t_step], \
-                kappa_hat_head[:,t_step], a_head[:,t_step]
+            if not (isinstance(applied_outputs, tuple) and len(applied_outputs) == 2 and
+                    isinstance(applied_outputs[0], torch.Tensor) and
+                    isinstance(applied_outputs[1], torch.Tensor)):
+                # This will catch if applied_outputs is None or not the expected tuple of 2 tensors
+                raise RuntimeError(
+                    f"WKVFunction.apply(...) returned an unexpected value: {applied_outputs}. "
+                    "This often indicates a crash or critical error within the custom C++/CUDA kernel "
+                    "or the autograd.Function lifecycle. Expected a tuple of 2 tensors."
+                )
 
-            # Calculate Transition Matrix G_t (eq.19)
-            # G_t = diag(w_t) - kappa_hat_t^T (a_t . kappa_hat_t)
-            # (a_t . kappa_hat_t) is element-wise product
-            term_inside_paren = at * kappat_hat # (B,H,N)
-            # Outer product: kappa_hat_t (column vector) * term_inside_paren (row vector)
-            # kappat_hat.unsqueeze(-1) gives (B,H,N,1)
-            # term_inside_paren.unsqueeze(-2) gives (B,H,1,N)
-            outer_prod_term = kappat_hat.unsqueeze(-1) * term_inside_paren.unsqueeze(-2) # (B,H,N,N)
-            diag_wt = torch.diag_embed(wt) # Creates diagonal matrices (B,H,N,N) from wt (B,H,N)
-            G_t = diag_wt - outer_prod_term # (B,H,N,N)
+            p_prime_stacked, final_wkv_state_to_pass = applied_outputs
+            # p_prime_stacked is (B, T, H, N)
+            p_prime = p_prime_stacked.view(B, T, C) # Reshape to (B,T,C)
+        else:
+            wkv_readouts_over_time = [] # To store the readout from WKV state at each time step
+            current_wkv_state = wkv_state_prev # This is wkv_{t-1}
 
-            # Calculate Additive term: v_t^T . k_bar_t (outer product) (eq.17)
-            # vt.unsqueeze(-1) gives (B,H,N,1)
-            # kt_bar.unsqueeze(-2) gives (B,H,1,N)
-            vk_outer_prod = vt.unsqueeze(-1) * kt_bar.unsqueeze(-2) # (B,H,N,N)
+            # Iterate over each time step in the sequence
+            for t_step in range(T):
+                # Get per-timestep components (B,H,N)
+                rt, wt, kt_bar, vt, kappat_hat, at = \
+                    r_head[:,t_step], w_head[:,t_step], k_bar_head[:,t_step], v_head[:,t_step], \
+                    kappa_hat_head[:,t_step], a_head[:,t_step]
 
-            # WKV state update: wkv_t = wkv_{t-1} @ G_t + v_t^T . k_bar_t (eq.17)
-            # Note: paper uses row vectors, so state update is S_t = S_{t-1} * G_t + ...
-            # Here, if wkv_state is D_h x D_h, and G_t is D_h x D_h, then wkv_state @ G_t is correct.
-            current_wkv_state = current_wkv_state @ G_t + vk_outer_prod # (B,H,N,N)
+                # Calculate Transition Matrix G_t (eq.19)
+                # G_t = diag(w_t) - kappa_hat_t^T (a_t . kappa_hat_t)
+                # (a_t . kappa_hat_t) is element-wise product
+                term_inside_paren = at * kappat_hat # (B,H,N)
+                # Outer product: kappa_hat_t (column vector) * term_inside_paren (row vector)
+                # kappat_hat.unsqueeze(-1) gives (B,H,N,1)
+                # term_inside_paren.unsqueeze(-2) gives (B,H,1,N)
+                outer_prod_term = kappat_hat.unsqueeze(-1) * term_inside_paren.unsqueeze(-2) # (B,H,N,N)
+                diag_wt = torch.diag_embed(wt) # Creates diagonal matrices (B,H,N,N) from wt (B,H,N)
+                G_t = diag_wt - outer_prod_term # (B,H,N,N)
 
-            # Readout from WKV state: r_t @ wkv_t^T (as per pseudocode in Appendix G, line 53: y = wkv_state @ r_t)
-            # The paper's math (eq.21) has r_t * wkv_t^T.
-            # If r_t is (B,H,N) and wkv_state is (B,H,N,N), then r_t @ wkv_state^T would be:
-            # (B,H,N) @ (B,H,N,N) -> (B,H,N).
-            # The einsum 'bhn,bhmn->bhm' means r_t (row vector) times wkv_state (matrix).
-            # This matches r_t * W where W is the wkv_state.
-            wkv_readout_t = torch.einsum('bhn,bhmn->bhm', rt, current_wkv_state) # (B,H,N)
-            wkv_readouts_over_time.append(wkv_readout_t)
+                # Calculate Additive term: v_t^T . k_bar_t (outer product) (eq.17)
+                # vt.unsqueeze(-1) gives (B,H,N,1)
+                # kt_bar.unsqueeze(-2) gives (B,H,1,N)
+                vk_outer_prod = vt.unsqueeze(-1) * kt_bar.unsqueeze(-2) # (B,H,N,N)
 
-        # The final WKV state after processing all T steps
-        final_wkv_state_to_pass = current_wkv_state.clone()
+                # WKV state update: wkv_t = wkv_{t-1} @ G_t + v_t^T . k_bar_t (eq.17)
+                # Note: paper uses row vectors, so state update is S_t = S_{t-1} * G_t + ...
+                # Here, if wkv_state is D_h x D_h, and G_t is D_h x D_h, then wkv_state @ G_t is correct.
+                current_wkv_state = current_wkv_state @ G_t + vk_outer_prod # (B,H,N,N)
 
-        # Stack readouts from all time steps
-        # p_prime is the result of (r_t wkv_t^T) from eq.21, before LayerNorm and bonus
-        p_prime = torch.stack(wkv_readouts_over_time, dim=1) # (B, T, H, N)
-        p_prime = p_prime.view(B, T, C) # Reshape to (B,T,C)
+                # Readout from WKV state: r_t @ wkv_t^T (as per pseudocode in Appendix G, line 53: y = wkv_state @ r_t)
+                # The paper's math (eq.21) has r_t * wkv_t^T.
+                # If r_t is (B,H,N) and wkv_state is (B,H,N,N), then r_t @ wkv_state^T would be:
+                # (B,H,N) @ (B,H,N,N) -> (B,H,N).
+                # The einsum 'bhn,bhmn->bhm' means r_t (row vector) times wkv_state (matrix).
+                # This matches r_t * W where W is the wkv_state.
+                wkv_readout_t = torch.einsum('bhn,bhmn->bhm', rt, current_wkv_state) # (B,H,N)
+                wkv_readouts_over_time.append(wkv_readout_t)
+
+            # The final WKV state after processing all T steps
+            final_wkv_state_to_pass = current_wkv_state.clone()
+
+            # Stack readouts from all time steps
+            # p_prime is the result of (r_t wkv_t^T) from eq.21, before LayerNorm and bonus
+            p_prime = torch.stack(wkv_readouts_over_time, dim=1) # (B, T, H, N)
+            p_prime = p_prime.view(B, T, C) # Reshape to (B,T,C)
 
         # Normalize p_prime using GroupNorm (eq.21, and Fig 11)
         # GroupNorm expects (B, C, ...) input, so transpose T and C
