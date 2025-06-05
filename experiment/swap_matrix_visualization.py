@@ -6,7 +6,6 @@ import numpy as np
 import seaborn as sns
 import torch
 import torch.nn.functional as F
-
 # Assuming rwkv_model.py and config.py are in the same directory or accessible in PYTHONPATH
 from rwkv_model import RWKV7_Model_Classifier, RWKV_TimeMix
 
@@ -20,7 +19,7 @@ except ImportError:
         "LORA_DIM_W": 32, "LORA_DIM_A": 32, "LORA_DIM_V": 16, "LORA_DIM_G": 32
     }
     DATASET_FILE_CONFIG = 'regex_dataset.json'
-    MODEL_CHECKPOINT_PATH_CONFIG = 'best_rwkv_regex_model.pth'
+    MODEL_CHECKPOINT_PATH_CONFIG = 'rwkv7_fsm_experimental_model.pth'
     PAD_TOKEN_CONFIG = '<pad>'
 
 

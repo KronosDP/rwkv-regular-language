@@ -7,11 +7,10 @@ import matplotlib.pyplot as plt  # Added for plotting
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.metrics import accuracy_score, f1_score  # Added f1_score
-from torch.utils.data import DataLoader, Dataset
-
 from config import MAX_LEN, MODEL_HYPERPARAMETERS  # Added import
 from rwkv_model import RWKV7_Model_Classifier
+from sklearn.metrics import accuracy_score, f1_score  # Added f1_score
+from torch.utils.data import DataLoader, Dataset
 
 # Add the project root to the Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -207,7 +206,7 @@ def train_and_evaluate():
             best_val_accuracy = val_accuracy
             epochs_since_last_improvement = 0
             # Uncomment to save best model
-            torch.save(model.state_dict(), 'best_rwkv_regex_model.pth')
+            torch.save(model.state_dict(), 'rwkv7_fsm_experimental_model.pth')
             print(f"    New best validation accuracy: {best_val_accuracy:.4f}")
         else:
             epochs_since_last_improvement += 1

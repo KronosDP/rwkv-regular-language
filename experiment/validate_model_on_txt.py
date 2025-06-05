@@ -1,15 +1,14 @@
 import json
 
 import torch
-from tqdm import tqdm  # Added import
-
 from config import MODEL_HYPERPARAMETERS  # Added import
 from dataset_generator import VOCAB
 from rwkv_model import RWKV7_Model_Classifier
+from tqdm import tqdm  # Added import
 from utils import check_ab_star, check_contains_substring, get_language_label
 
 # --- Configuration ---
-MODEL_PATH = "best_rwkv_regex_model.pth"
+MODEL_PATH = "rwkv7_fsm_experimental_model.pth"
 VALIDATION_FILE = "validation.txt"
 DATASET_INFO_FILE = "regex_dataset.json"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")

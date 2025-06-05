@@ -10,5 +10,5 @@ MODEL_HYPERPARAMETERS = {
 }
 MAX_LEN = 50
 DATASET_FILE_CONFIG = 'regex_dataset.json'
-MODEL_CHECKPOINT_PATH_CONFIG = 'best_rwkv_regex_model.pth'
+MODEL_CHECKPOINT_PATH_CONFIG = 'rwkv7_fsm_experimental_model.pth'
 PAD_TOKEN_CONFIG = '<pad>'
