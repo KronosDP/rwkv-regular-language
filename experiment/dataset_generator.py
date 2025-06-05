@@ -1,12 +1,16 @@
 import json
 import random
 
+import wandb
+
 # --- Configuration ---w
 VOCAB = {'<pad>': 0, 'a': 1, 'b': 2, 'c': 3}
 INV_VOCAB = {v: k for k, v in VOCAB.items()}
 ALPHABET_CHARS_AB = ['a', 'b']
 ALPHABET_CHARS_ABC = ['a', 'b', 'c']
 TARGET_SUBSTRING = "abbccc"
+NUM_SAMPLES = 3_000
+MAX_LEN = 50
 
 # --- Language Checking Functions ---
 from utils import (check_ab_star, check_contains_substring,
@@ -219,8 +223,24 @@ def generate_dataset(num_samples, max_len):
     return int_data, VOCAB
 
 if __name__ == "__main__":
-    NUM_SAMPLES = 1_000
-    MAX_LEN = 50
+    
+    
+    # Create unique dataset version based on parameters
+    dataset_version = f"samples_{NUM_SAMPLES}_maxlen_{MAX_LEN}_target_{TARGET_SUBSTRING}"
+      # Initialize wandb for dataset generation
+    run = wandb.init(project="rwkv-regex-learning", 
+                     job_type="dataset_generation",
+                     name=f"dataset_{dataset_version}",
+                     tags=["dataset", f"samples_{NUM_SAMPLES}", f"maxlen_{MAX_LEN}", f"target_{TARGET_SUBSTRING}", "generation"],
+                     config={
+                         "num_samples": NUM_SAMPLES,
+                         "max_len": MAX_LEN,
+                         "target_substring": TARGET_SUBSTRING,
+                         "vocab_size": len(VOCAB),
+                         "alphabet_chars_ab": ALPHABET_CHARS_AB,
+                         "alphabet_chars_abc": ALPHABET_CHARS_ABC,
+                         "dataset_version": dataset_version
+                     })
     
     print(f"Generating {NUM_SAMPLES} samples up to max_len {MAX_LEN}...")
     data, vocab_map = generate_dataset(NUM_SAMPLES, MAX_LEN)
@@ -270,7 +290,50 @@ if __name__ == "__main__":
         total_pos = pos_ab_star_only_count + pos_abbccc_only_count + pos_both_count
         print(f"  Total Positive: {total_pos} ({(total_pos/total_generated*100):.1f}%)")
         print(f"  Total Negative: {neg_count} ({(neg_count/total_generated*100):.1f}%)")
-    
     print(f"Vocabulary: {vocab_map}")
     print(f"Max length: {MAX_LEN}")
     print(f"Dataset saved to {file_path}")
+    
+    # Log dataset statistics to wandb
+    wandb.log({
+        "dataset/total_samples": len(data),
+        "dataset/train_samples": len(train_data),
+        "dataset/val_samples": len(val_data),
+        "dataset/pos_ab_star_only": pos_ab_star_only_count,
+        "dataset/pos_contains_abbccc_only": pos_abbccc_only_count,
+        "dataset/pos_both_conditions": pos_both_count,
+        "dataset/total_positive": pos_ab_star_only_count + pos_abbccc_only_count + pos_both_count,
+        "dataset/total_negative": neg_count,
+        "dataset/pos_ab_star_percentage": (pos_ab_star_only_count/total_generated*100) if total_generated > 0 else 0,
+        "dataset/pos_abbccc_percentage": (pos_abbccc_only_count/total_generated*100) if total_generated > 0 else 0,
+        "dataset/neg_percentage": (neg_count/total_generated*100) if total_generated > 0 else 0
+    })
+      # Save dataset as wandb artifact with versioned name
+    artifact = wandb.Artifact(
+        name=f"regex_dataset_{dataset_version}",
+        type="dataset",
+        description=f"Regex dataset with {NUM_SAMPLES} samples, max_len={MAX_LEN}, target='{TARGET_SUBSTRING}'",
+        metadata={
+            "num_samples": NUM_SAMPLES,
+            "max_len": MAX_LEN,
+            "target_substring": TARGET_SUBSTRING,
+            "train_samples": len(train_data),
+            "val_samples": len(val_data),
+            "vocab_size": len(VOCAB),
+            "pos_ab_star_only": pos_ab_star_only_count,
+            "pos_contains_abbccc_only": pos_abbccc_only_count,
+            "total_positive": pos_ab_star_only_count + pos_abbccc_only_count + pos_both_count,
+            "total_negative": neg_count
+        }
+    )
+    artifact.add_file(file_path)
+    wandb.log_artifact(artifact)
+    
+    # Log the artifact name for easy reference in training
+    wandb.summary["dataset_artifact_name"] = f"regex_dataset_{dataset_version}"
+    wandb.summary["dataset_file_path"] = file_path
+    
+    print(f"\n✓ Dataset artifact saved as: regex_dataset_{dataset_version}")
+    print(f"✓ This dataset can be reused in training by referencing the artifact name")
+    
+    wandb.finish()
