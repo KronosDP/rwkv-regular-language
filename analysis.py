@@ -8,6 +8,7 @@ import seaborn as sns
 import torch
 import torch.nn.functional as F
 
+from experiment.config import MODEL_HYPERPARAMETERS
 # --- Expected Imports from your project structure ---
 # Assuming these files are in the same directory or PYTHONPATH is set up correctly
 # Experiment-side imports
@@ -57,20 +58,36 @@ DATASET_CONFIG_PATH = find_model_file(
 # Load from your experiment/config.py or define here if static
 # For simplicity, loading a subset. Ensure these match your experimental_model.py and config.py
 # Example:
-# D_MODEL = MODEL_HYPERPARAMETERS["D_MODEL"]
-# N_LAYER = MODEL_HYPERPARAMETERS["N_LAYER"]
-# HEAD_SIZE = MODEL_HYPERPARAMETERS["HEAD_SIZE"]
-# FFN_HIDDEN_MULTIPLIER = MODEL_HYPERPARAMETERS["FFN_HIDDEN_MULTIPLIER"]
-# LORA_DIM_W = MODEL_HYPERPARAMETERS["LORA_DIM_W"] 
-# LORA_DIM_A = MODEL_HYPERPARAMETERS["LORA_DIM_A"]
-# LORA_DIM_V = MODEL_HYPERPARAMETERS["LORA_DIM_V"]
-# LORA_DIM_G = MODEL_HYPERPARAMETERS["LORA_DIM_G"]
 
-# Placeholder - replace with actual loading or definitions from your config.py
+# Placeholder defaults - will be overridden by actual MODEL_HYPERPARAMETERS if available
 MODEL_HYPERPARAMETERS_DEFAULT = {
     "D_MODEL": 8, "N_LAYER": 4, "HEAD_SIZE": 8, "FFN_HIDDEN_MULTIPLIER": 4,
     "LORA_DIM_W": 32, "LORA_DIM_A": 32, "LORA_DIM_V": 16, "LORA_DIM_G": 32
 }
+
+# Use actual MODEL_HYPERPARAMETERS if available, otherwise fall back to defaults
+try:
+    D_MODEL = MODEL_HYPERPARAMETERS["D_MODEL"]
+    N_LAYER = MODEL_HYPERPARAMETERS["N_LAYER"]
+    HEAD_SIZE = MODEL_HYPERPARAMETERS["HEAD_SIZE"]
+    FFN_HIDDEN_MULTIPLIER = MODEL_HYPERPARAMETERS["FFN_HIDDEN_MULTIPLIER"]
+    LORA_DIM_W = MODEL_HYPERPARAMETERS["LORA_DIM_W"]
+    LORA_DIM_A = MODEL_HYPERPARAMETERS["LORA_DIM_A"]
+    LORA_DIM_V = MODEL_HYPERPARAMETERS["LORA_DIM_V"]
+    LORA_DIM_G = MODEL_HYPERPARAMETERS["LORA_DIM_G"]
+    print("Using MODEL_HYPERPARAMETERS from config")
+except (KeyError, NameError) as e:
+    print(f"Warning: Could not load all hyperparameters from MODEL_HYPERPARAMETERS: {e}")
+    print("Falling back to default values for D_MODEL, N_LAYER, HEAD_SIZE, FFN_HIDDEN_MULTIPLIER, LORA_DIM_W, LORA_DIM_A, LORA_DIM_V, LORA_DIM_G.")
+    D_MODEL = MODEL_HYPERPARAMETERS_DEFAULT["D_MODEL"]
+    N_LAYER = MODEL_HYPERPARAMETERS_DEFAULT["N_LAYER"]
+    HEAD_SIZE = MODEL_HYPERPARAMETERS_DEFAULT["HEAD_SIZE"]
+    FFN_HIDDEN_MULTIPLIER = MODEL_HYPERPARAMETERS_DEFAULT["FFN_HIDDEN_MULTIPLIER"]
+    LORA_DIM_W = MODEL_HYPERPARAMETERS_DEFAULT["LORA_DIM_W"]
+    LORA_DIM_A = MODEL_HYPERPARAMETERS_DEFAULT["LORA_DIM_A"]
+    LORA_DIM_V = MODEL_HYPERPARAMETERS_DEFAULT["LORA_DIM_V"]
+    LORA_DIM_G = MODEL_HYPERPARAMETERS_DEFAULT["LORA_DIM_G"]
+
 PAD_TOKEN_DEFAULT = '<pad>'
 
 
@@ -86,9 +103,19 @@ N_STATES_FSM = 0 # Will be loaded from conceptual model
 
 def load_experimental_model_and_vocab():
     """Loads the experimental RWKV-7 model and vocabulary."""
-    global VOCAB, MODEL_MAX_LEN, MODEL_HYPERPARAMETERS_DEFAULT
+    global VOCAB, MODEL_MAX_LEN
     
-    model_hyperparams = MODEL_HYPERPARAMETERS_DEFAULT # Start with default
+    # Use the globally defined (and prioritized) hyperparameters
+    model_hyperparams = {
+        "D_MODEL": D_MODEL,
+        "N_LAYER": N_LAYER,
+        "HEAD_SIZE": HEAD_SIZE,
+        "FFN_HIDDEN_MULTIPLIER": FFN_HIDDEN_MULTIPLIER,
+        "LORA_DIM_W": LORA_DIM_W,
+        "LORA_DIM_A": LORA_DIM_A,
+        "LORA_DIM_V": LORA_DIM_V,
+        "LORA_DIM_G": LORA_DIM_G
+    }
     pad_token = PAD_TOKEN_DEFAULT
     
     if os.path.exists(DATASET_CONFIG_PATH):
