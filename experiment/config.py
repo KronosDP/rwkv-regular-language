@@ -1,5 +1,5 @@
 MODEL_HYPERPARAMETERS = {
-    "D_MODEL": 100,
+    "D_MODEL": 10,
     "N_LAYER": 4,
     "HEAD_SIZE": 10,
     "FFN_HIDDEN_MULTIPLIER": 4,

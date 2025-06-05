@@ -6,3 +6,5 @@ validation.txt
 build/
 *.pyd
 *.png
+wandb/
+*.txt
